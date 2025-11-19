@@ -1,0 +1,78 @@
+# -------------------------------------------------
+# YOLOv13 + LSNet backbone
+# -------------------------------------------------
+nc: 80  # number of classes
+
+scales:          # model compound scaling constants
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024]   # Nano
+  s: [0.50, 0.50, 1024]   # Small
+  l: [1.00, 1.00, 512]    # Large
+  x: [1.00, 1.50, 512]    # Extra Large
+
+# ---------------- Backbone ----------------
+# 0  LSNetBackbone 返回 [P2, P3, P4, P5]  
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, Conv,       [128, 3, 2]]     # 0 - patch_embed 第3层输出，stride=8 → P2/8
+  - [-1, 4, LSBlock,    [128]]           # 1 - Stage 1 (blocks1)
+  - [-1, 1, DWConv,     [128, 3, 2]]     # 2 - Downsample
+  - [-1, 1, Conv,       [256, 1, 1]]     # 3 - 1x1 Conv
+  - [-1, 6, LSBlock,    [256]]           # 4 - Stage 2 (blocks2) → P3/16
+  - [-1, 1, DWConv,     [256, 3, 2]]     # 5
+  - [-1, 1, Conv,       [384, 1, 1]]     # 6
+  - [-1, 8, LSBlock,    [384]]           # 7 - Stage 3 (blocks3) → P4/32
+  - [-1, 1, DWConv,     [384, 3, 2]]     # 8
+  - [-1, 1, Conv,       [512, 1, 1]]     # 9
+  - [-1, 10, LSBlock,   [512]]           #10 - Stage 4 (blocks4) → P5/64
+# yolov13-lsnet
+# 输出节点（4阶段输出）
+#output: [1, 4, 7, 10]  # P2, P3, P4, P5
+
+
+# ---------------- Head（新增P2输出） ----------------
+head:
+  # HyperACE：输入4层（P2~P5）
+  - [[1, 4, 7, 10], 2, HyperACE, [512, 8, True, True, 0.5, 1, "both"]]   ✅ 修改：输入4层
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+
+  # DownsampleConv 保持不变，用于构造 FullPAD 段
+  - [ 9, 1, DownsampleConv, []]
+
+  # FullPAD 分发路径：分别将 Y 分发到 P2~P5 的位置
+  - [[1, 11], 1, FullPAD_Tunnel, []]     ✅ 新增：分发到 P2（编号可能会变，假设当前为 index 12）
+  - [[4, 12], 1, FullPAD_Tunnel, []]     ✅ 修改：index 更新为 P3 分发
+  - [[7, 13], 1, FullPAD_Tunnel, []]     ✅ 修改：P4 分发
+  - [[10,14], 1, FullPAD_Tunnel, []]     ✅ 修改：P5 分发
+
+  # Neck 聚合路径从 P5 → P3（向上路径）
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 13], 1, Concat, [1]]           # cat P4
+  - [-1, 2, DSC3k2, [512, True]]
+  - [[-1, 10], 1, FullPAD_Tunnel, []]
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]
+  - [[-1, 12], 1, Concat, [1]]           # cat P3
+  - [-1, 2, DSC3k2, [256, True]]
+  - [ 1, 1, Conv, [256, 1, 1]]           ✅ 新增：P2 通道对齐
+  - [[-1, 11], 1, FullPAD_Tunnel, []]    ✅ 新增：分发到 P2
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]   ✅ 新增：继续向上采样准备融合 P2
+  - [[-1, 12], 1, Concat, [1]]           ✅ 新增：cat P2
+  - [-1, 2, DSC3k2, [128, True]]         ✅ 新增：构造 P2 检测特征层
+  - [[-1, 1], 1, FullPAD_Tunnel, []]     ✅ 新增：对 P2 进一步分发融合
+
+  # 向下路径（构造 P3~P5 检测层）
+  - [-1, 1, Conv, [256, 3, 2]]
+  - [[-1, 13], 1, Concat, [1]]
+  - [-1, 2, DSC3k2, [512, True]]
+  - [[-1, 10], 1, FullPAD_Tunnel, []]
+
+  - [-1, 1, Conv, [512, 3, 2]]
+  - [[-1, 14], 1, Concat, [1]]
+  - [-1, 2, DSC3k2, [1024, True]]
+  - [[-1, 11], 1, FullPAD_Tunnel, []]
+
+  # Detect head：从 P2~P5 输出4个尺度特征图
+  - [[25, 29, 33, 36], 1, Detect, [nc]]   ✅ 修改：Detect 输入从 3 → 4 路
+

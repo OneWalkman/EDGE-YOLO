@@ -1,15 +1,18 @@
 # EdgeLine-YOLO: Real-Time Industrial Defect Detection  
 *A modular YOLO-based framework for high-precision, real-time industrial visual inspection.*  
-:contentReference[oaicite:0]{index=0}
 
 ---
 
 ## Table of Contents
 - [Project Overview](#project-overview)
 - [Core Features](#core-features)
+- [Key Results](#Key-Results)
+- [Algorithm & Model Design](#Algorithm-&-Model-Design)
 - [Repository Structure](#repository-structure)
 - [License](#license)
-
+- [Repository Structure](#Repository-Structure)
+- [Acknowledgement](#Acknowledgement)
+  
 ---
 
 ## Project Overview
@@ -19,16 +22,7 @@ EdgeLine-YOLO addresses these challenges with a modular enhancement of the YOLO 
 - **Long-range context modeling** (Linear Attention)  
 - **Frequency-domain representation** (Wavelet-enhanced Neck)  
 - **Quality-aligned scoring** (GFLv2 × UniHead)  
-:contentReference[oaicite:1]{index=1}
-
-### Key Results (Summary)
-- **+2.2% mAP@0.5:0.95** over baseline YOLO11  
-- **–1.9% FNR** (fewer missed defects)  
-- **Real-time latency preserved (~8 ms on RTX 4090 FP16)**  
-- Validated across **GC10-DET**, **DeepPCB**, **Magnetic Tile**, **TILDA Textile**  
-
 ---
-
 ## Core Features
 - **C2PSA Linear Attention Backbone**  
   - Efficient linear attention at S16 stage  
@@ -52,18 +46,19 @@ EdgeLine-YOLO addresses these challenges with a modular enhancement of the YOLO 
   - Maintains shape consistency and plug-and-play modularity  
 
 ---
+### Key Results (Summary)
+- **+2.2% mAP@0.5:0.95** over baseline YOLO11  
+- **–1.9% FNR** (fewer missed defects)  
+- **Real-time latency preserved (~8 ms on RTX 4090 FP16)**  
+- Validated across **GC10-DET**, **DeepPCB**, **Magnetic Tile**, **TILDA Textile**  
+
+---
 
 ### Algorithm & Model Design
 - Designed the **EdgeLine-YOLO** architecture integrating attention, wavelets, and quality-aware detection.  
 - Implemented **C2PSA Linear-Attention** module customized for YOLO11 backbone.  
 - Built **DSC3K2_Wavelet** fusion module with DWT-based sub-band processing.  
 - Replaced YOLO head with **GFLv2 × UniHead** achieving score–quality alignment.
-
-### Innovation & Technical Challenges
-- Integrated **linear attention, wavelet transforms, and distributional regression** in a fully modular YOLO-based detector.  
-- Achieved **real-time performance** despite multiple enhancements.  
-- Addressed **small/low-contrast defect detection** and **threshold instability** in industrial deployments.
-
 ---
 
 ## Repository Structure
